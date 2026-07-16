@@ -1,0 +1,469 @@
+import { useRef, useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Environment, OrbitControls } from '@react-three/drei';
+import * as THREE from 'three';
+
+const vehicles = [
+  { id: 'sports', label: 'Sports Car', icon: '🏎️', color: '#EF4444', bodyColor: '#7f1d1d', desc: 'High-performance sports car with aerodynamic design.' },
+  { id: 'suv', label: 'SUV', icon: '🚙', color: '#10B981', bodyColor: '#064e3b', desc: 'Versatile SUV built for urban adventures.' },
+  { id: 'sedan', label: 'Sedan', icon: '🚗', color: '#3B82F6', bodyColor: '#1e3a5f', desc: 'Premium executive sedan for everyday luxury.' },
+  { id: 'motorcycle', label: 'Motorcycle', icon: '🏍️', color: '#F59E0B', bodyColor: '#78350f', desc: 'Performance motorcycle for thrill-seekers.' },
+  { id: 'electric', label: 'Electric', icon: '⚡', color: '#00E5FF', bodyColor: '#164e63', desc: 'Zero-emission electric vehicle of the future.' },
+];
+
+const paintOptions = [
+  { name: 'Midnight', color: '#0f1729' },
+  { name: 'Crimson', color: '#7f1d1d' },
+  { name: 'Ocean', color: '#1e3a5f' },
+  { name: 'Forest', color: '#064e3b' },
+  { name: 'Pearl', color: '#f0f0f0' },
+  { name: 'Cosmic', color: '#2e1065' },
+];
+
+// Sports Car 3D Model
+function SportsCar({ color, doorsOpen, headlightsOn }: { color: string; doorsOpen: boolean; headlightsOn: boolean }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const wheelRefs = useRef<THREE.Group[]>([]);
+  const doorRef = useRef<THREE.Group>(null);
+  const time = useRef(0);
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(color), metalness: 0.95, roughness: 0.1 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: '#888', metalness: 1, roughness: 0.05 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: '#1a2a4a', metalness: 0.1, roughness: 0, transparent: true, opacity: 0.35 });
+  const tireMat = new THREE.MeshStandardMaterial({ color: '#111', roughness: 0.9 });
+  const lightMat = new THREE.MeshStandardMaterial({ color: '#fff', emissive: new THREE.Color('#00E5FF'), emissiveIntensity: headlightsOn ? 4 : 0.2 });
+
+  useFrame((_, delta) => {
+    time.current += delta;
+    if (groupRef.current) groupRef.current.rotation.y += delta * 0.3;
+    wheelRefs.current.forEach(w => { if (w) w.rotation.x += delta * 1.5; });
+    if (doorRef.current) {
+      doorRef.current.rotation.y = THREE.MathUtils.lerp(doorRef.current.rotation.y, doorsOpen ? Math.PI / 3 : 0, 0.05);
+    }
+  });
+
+  const Wheel = ({ pos, idx }: { pos: [number, number, number]; idx: number }) => (
+    <group ref={(el) => { if (el) wheelRefs.current[idx] = el; }} position={pos}>
+      <mesh material={tireMat}><torusGeometry args={[0.28, 0.12, 12, 32]} /></mesh>
+      <mesh material={chromeMat}><cylinderGeometry args={[0.18, 0.18, 0.12, 8]} /></mesh>
+      {[0, 60, 120, 180, 240, 300].map(a => (
+        <mesh key={a} material={chromeMat} rotation={[0, 0, a * Math.PI / 180]}>
+          <boxGeometry args={[0.32, 0.03, 0.03]} />
+        </mesh>
+      ))}
+    </group>
+  );
+
+  return (
+    <group ref={groupRef}>
+      {/* Low body */}
+      <mesh material={bodyMat} position={[0, 0.02, 0]}><boxGeometry args={[2.2, 0.35, 0.95]} /></mesh>
+      {/* Aerodynamic roof */}
+      <mesh material={bodyMat} position={[0.05, 0.38, 0]}><boxGeometry args={[1.2, 0.28, 0.88]} /></mesh>
+      {/* Sloped front */}
+      <mesh material={bodyMat} position={[0.82, 0.12, 0]} rotation={[0, 0, -0.2]}><boxGeometry args={[0.6, 0.12, 0.92]} /></mesh>
+      {/* Rear diffuser */}
+      <mesh material={bodyMat} position={[-0.9, -0.05, 0]} rotation={[0.2, 0, 0]}><boxGeometry args={[0.4, 0.08, 0.92]} /></mesh>
+      {/* Spoiler */}
+      <mesh material={chromeMat} position={[-0.85, 0.38, 0]}><boxGeometry args={[0.15, 0.06, 1.1]} /></mesh>
+      <mesh material={chromeMat} position={[-0.85, 0.1, 0.5]}><boxGeometry args={[0.04, 0.3, 0.03]} /></mesh>
+      <mesh material={chromeMat} position={[-0.85, 0.1, -0.5]}><boxGeometry args={[0.04, 0.3, 0.03]} /></mesh>
+      {/* Windshield */}
+      <mesh material={glassMat} position={[0.45, 0.38, 0]} rotation={[0, 0, -0.45]}><boxGeometry args={[0.45, 0.25, 0.82]} /></mesh>
+      {/* Side windows */}
+      <mesh material={glassMat} position={[0.05, 0.42, 0.45]}><boxGeometry args={[1.0, 0.22, 0.02]} /></mesh>
+      <mesh material={glassMat} position={[0.05, 0.42, -0.45]}><boxGeometry args={[1.0, 0.22, 0.02]} /></mesh>
+      {/* Door */}
+      <group ref={doorRef} position={[0, 0, 0.48]}>
+        <mesh material={bodyMat} position={[0.1, 0.1, 0]}><boxGeometry args={[0.9, 0.38, 0.02]} /></mesh>
+      </group>
+      {/* Headlights */}
+      <mesh material={lightMat} position={[1.1, 0.1, 0.35]}><boxGeometry args={[0.02, 0.08, 0.16]} /></mesh>
+      <mesh material={lightMat} position={[1.1, 0.1, -0.35]}><boxGeometry args={[0.02, 0.08, 0.16]} /></mesh>
+      {/* Taillights */}
+      <mesh material={new THREE.MeshStandardMaterial({ color: '#ff0', emissive: '#f00', emissiveIntensity: 2 })} position={[-1.1, 0.1, 0.35]}><boxGeometry args={[0.02, 0.08, 0.2]} /></mesh>
+      <mesh material={new THREE.MeshStandardMaterial({ color: '#ff0', emissive: '#f00', emissiveIntensity: 2 })} position={[-1.1, 0.1, -0.35]}><boxGeometry args={[0.02, 0.08, 0.2]} /></mesh>
+      {/* Exhausts */}
+      <mesh material={chromeMat} position={[-1.12, -0.1, 0.25]}><cylinderGeometry args={[0.035, 0.04, 0.05, 12]} /></mesh>
+      <mesh material={chromeMat} position={[-1.12, -0.1, -0.25]}><cylinderGeometry args={[0.035, 0.04, 0.05, 12]} /></mesh>
+      {/* Wheels */}
+      <Wheel pos={[0.75, -0.2, 0.5]} idx={0} />
+      <Wheel pos={[0.75, -0.2, -0.5]} idx={1} />
+      <Wheel pos={[-0.75, -0.2, 0.5]} idx={2} />
+      <Wheel pos={[-0.75, -0.2, -0.5]} idx={3} />
+      {headlightsOn && <>
+        <pointLight position={[1.2, 0.2, 0.4]} color="#00E5FF" intensity={4} distance={5} />
+        <pointLight position={[1.2, 0.2, -0.4]} color="#00E5FF" intensity={4} distance={5} />
+      </>}
+    </group>
+  );
+}
+
+function Motorcycle({ color, headlightsOn }: { color: string; headlightsOn: boolean }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const wheelRef1 = useRef<THREE.Group>(null);
+  const wheelRef2 = useRef<THREE.Group>(null);
+
+  useFrame((_, delta) => {
+    if (groupRef.current) groupRef.current.rotation.y += delta * 0.3;
+    if (wheelRef1.current) wheelRef1.current.rotation.x += delta * 1.5;
+    if (wheelRef2.current) wheelRef2.current.rotation.x += delta * 1.5;
+  });
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(color), metalness: 0.9, roughness: 0.1 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: '#aaa', metalness: 1, roughness: 0.1 });
+  const tireMat = new THREE.MeshStandardMaterial({ color: '#111', roughness: 0.9 });
+  const lightMat = new THREE.MeshStandardMaterial({ color: '#fff', emissive: '#fff', emissiveIntensity: headlightsOn ? 3 : 0 });
+
+  const Wheel = ({ pos, r }: { pos: [number, number, number]; r: React.Ref<THREE.Group> }) => (
+    <group ref={r} position={pos}>
+      <mesh material={tireMat}><torusGeometry args={[0.3, 0.1, 12, 32]} /></mesh>
+      {[0, 45, 90, 135].map(a => (
+        <mesh key={a} material={chromeMat} rotation={[0, 0, a * Math.PI / 180]}><boxGeometry args={[0.5, 0.02, 0.02]} /></mesh>
+      ))}
+    </group>
+  );
+
+  return (
+    <group ref={groupRef}>
+      <mesh material={bodyMat} position={[0, 0.3, 0]}><boxGeometry args={[1.2, 0.2, 0.3]} /></mesh>
+      <mesh material={bodyMat} position={[0.3, 0.5, 0]} rotation={[0, 0, -0.2]}><boxGeometry args={[0.5, 0.15, 0.25]} /></mesh>
+      <mesh material={bodyMat} position={[-0.2, 0.45, 0]}><boxGeometry args={[0.4, 0.12, 0.25]} /></mesh>
+      <mesh material={chromeMat} position={[0.6, 0.2, 0]} rotation={[0, 0, 0.2]}><cylinderGeometry args={[0.03, 0.03, 0.5, 8]} /></mesh>
+      <mesh material={lightMat} position={[0.65, 0.55, 0]}><sphereGeometry args={[0.08, 16, 16]} /></mesh>
+      <Wheel pos={[0.7, 0, 0]} r={wheelRef1} />
+      <Wheel pos={[-0.7, 0, 0]} r={wheelRef2} />
+      {headlightsOn && <pointLight position={[1, 0.5, 0]} color="#fff" intensity={3} distance={5} />}
+    </group>
+  );
+}
+
+function ElectricCar({ color, headlightsOn }: { color: string; headlightsOn: boolean }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const wheelRefs = useRef<THREE.Group[]>([]);
+  const time = useRef(0);
+
+  useFrame((_, delta) => {
+    time.current += delta;
+    if (groupRef.current) groupRef.current.rotation.y += delta * 0.3;
+    wheelRefs.current.forEach(w => { if (w) w.rotation.x += delta * 1.5; });
+  });
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(color), metalness: 0.9, roughness: 0.05 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: '#ccc', metalness: 1, roughness: 0.05 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: '#1a3a5a', transparent: true, opacity: 0.4 });
+  const tireMat = new THREE.MeshStandardMaterial({ color: '#111', roughness: 0.9 });
+  const lightMat = new THREE.MeshStandardMaterial({ color: '#00E5FF', emissive: '#00E5FF', emissiveIntensity: headlightsOn ? 5 : 0.5 });
+  const glowMat = new THREE.MeshStandardMaterial({ color: '#00E5FF', emissive: '#00E5FF', emissiveIntensity: 1, transparent: true, opacity: 0.6 });
+
+  const Wheel = ({ pos, idx }: { pos: [number, number, number]; idx: number }) => (
+    <group ref={(el) => { if (el) wheelRefs.current[idx] = el; }} position={pos}>
+      <mesh material={tireMat}><torusGeometry args={[0.3, 0.11, 12, 32]} /></mesh>
+      <mesh material={chromeMat}><cylinderGeometry args={[0.2, 0.2, 0.1, 16]} /></mesh>
+    </group>
+  );
+
+  return (
+    <group ref={groupRef}>
+      <mesh material={bodyMat} position={[0, 0.1, 0]}><boxGeometry args={[2.3, 0.4, 1.0]} /></mesh>
+      <mesh material={bodyMat} position={[0, 0.48, 0]}><boxGeometry args={[1.8, 0.32, 0.92]} /></mesh>
+      {/* Panoramic roof glass */}
+      <mesh material={glassMat} position={[0, 0.62, 0]}><boxGeometry args={[1.6, 0.04, 0.88]} /></mesh>
+      {/* EV light bar */}
+      <mesh material={lightMat} position={[1.15, 0.1, 0]}><boxGeometry args={[0.02, 0.04, 0.95]} /></mesh>
+      <mesh material={lightMat} position={[-1.15, 0.1, 0]}><boxGeometry args={[0.02, 0.04, 0.95]} /></mesh>
+      {/* Undercarriage glow */}
+      <mesh material={glowMat} position={[0, -0.18, 0]}><boxGeometry args={[2.1, 0.01, 0.9]} /></mesh>
+      {/* Charge port */}
+      <mesh material={chromeMat} position={[-0.5, 0.2, 0.51]}><cylinderGeometry args={[0.03, 0.03, 0.04, 8]} /></mesh>
+      <Wheel pos={[0.82, -0.2, 0.52]} idx={0} />
+      <Wheel pos={[0.82, -0.2, -0.52]} idx={1} />
+      <Wheel pos={[-0.82, -0.2, 0.52]} idx={2} />
+      <Wheel pos={[-0.82, -0.2, -0.52]} idx={3} />
+      {headlightsOn && <>
+        <pointLight position={[1.2, 0.2, 0]} color="#00E5FF" intensity={5} distance={6} />
+        <pointLight position={[0, -0.2, 0]} color="#00E5FF" intensity={2} distance={3} />
+      </>}
+    </group>
+  );
+}
+
+function SUV({ color, headlightsOn }: { color: string; headlightsOn: boolean }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const wheelRefs = useRef<THREE.Group[]>([]);
+
+  useFrame((_, delta) => {
+    if (groupRef.current) groupRef.current.rotation.y += delta * 0.3;
+    wheelRefs.current.forEach(w => { if (w) w.rotation.x += delta * 1.5; });
+  });
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(color), metalness: 0.85, roughness: 0.15 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: '#999', metalness: 1, roughness: 0.1 });
+  const tireMat = new THREE.MeshStandardMaterial({ color: '#111', roughness: 0.9 });
+  const lightMat = new THREE.MeshStandardMaterial({ emissive: '#fff', emissiveIntensity: headlightsOn ? 4 : 0 });
+
+  const Wheel = ({ pos, idx }: { pos: [number, number, number]; idx: number }) => (
+    <group ref={(el) => { if (el) wheelRefs.current[idx] = el; }} position={pos}>
+      <mesh material={tireMat}><torusGeometry args={[0.35, 0.14, 12, 32]} /></mesh>
+      <mesh material={chromeMat}><cylinderGeometry args={[0.22, 0.22, 0.14, 8]} /></mesh>
+    </group>
+  );
+
+  return (
+    <group ref={groupRef}>
+      <mesh material={bodyMat} position={[0, 0.15, 0]}><boxGeometry args={[2.4, 0.55, 1.15]} /></mesh>
+      <mesh material={bodyMat} position={[0, 0.65, 0]}><boxGeometry args={[2.0, 0.55, 1.1]} /></mesh>
+      {/* Roof rack */}
+      <mesh material={chromeMat} position={[0, 0.95, 0]}><boxGeometry args={[1.8, 0.04, 1.0]} /></mesh>
+      {/* Bull bar */}
+      <mesh material={chromeMat} position={[1.25, 0.15, 0]}><boxGeometry args={[0.08, 0.3, 1.0]} /></mesh>
+      <mesh material={lightMat} position={[1.22, 0.35, 0.4]}><boxGeometry args={[0.02, 0.12, 0.2]} /></mesh>
+      <mesh material={lightMat} position={[1.22, 0.35, -0.4]}><boxGeometry args={[0.02, 0.12, 0.2]} /></mesh>
+      {headlightsOn && <pointLight position={[1.5, 0.4, 0]} color="#fff" intensity={4} distance={6} />}
+      <Wheel pos={[0.85, -0.2, 0.6]} idx={0} />
+      <Wheel pos={[0.85, -0.2, -0.6]} idx={1} />
+      <Wheel pos={[-0.85, -0.2, 0.6]} idx={2} />
+      <Wheel pos={[-0.85, -0.2, -0.6]} idx={3} />
+    </group>
+  );
+}
+
+function Sedan({ color, headlightsOn }: { color: string; headlightsOn: boolean }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const wheelRefs = useRef<THREE.Group[]>([]);
+
+  useFrame((_, delta) => {
+    if (groupRef.current) groupRef.current.rotation.y += delta * 0.3;
+    wheelRefs.current.forEach(w => { if (w) w.rotation.x += delta * 1.5; });
+  });
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(color), metalness: 0.92, roughness: 0.12 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: '#aaa', metalness: 1, roughness: 0.05 });
+  const tireMat = new THREE.MeshStandardMaterial({ color: '#111', roughness: 0.9 });
+  const lightMat = new THREE.MeshStandardMaterial({ emissive: '#3B82F6', emissiveIntensity: headlightsOn ? 5 : 0.3 });
+
+  const Wheel = ({ pos, idx }: { pos: [number, number, number]; idx: number }) => (
+    <group ref={(el) => { if (el) wheelRefs.current[idx] = el; }} position={pos}>
+      <mesh material={tireMat}><torusGeometry args={[0.3, 0.12, 12, 32]} /></mesh>
+      <mesh material={chromeMat}><cylinderGeometry args={[0.2, 0.2, 0.12, 8]} /></mesh>
+    </group>
+  );
+
+  return (
+    <group ref={groupRef}>
+      <mesh material={bodyMat} position={[0, 0.08, 0]}><boxGeometry args={[2.3, 0.42, 1.05]} /></mesh>
+      <mesh material={bodyMat} position={[0, 0.44, 0]}><boxGeometry args={[1.7, 0.38, 0.98]} /></mesh>
+      <mesh material={chromeMat} position={[0, 0.3, 0.535]}><boxGeometry args={[2.1, 0.02, 0.01]} /></mesh>
+      <mesh material={lightMat} position={[1.15, 0.15, 0.4]}><boxGeometry args={[0.02, 0.1, 0.18]} /></mesh>
+      <mesh material={lightMat} position={[1.15, 0.15, -0.4]}><boxGeometry args={[0.02, 0.1, 0.18]} /></mesh>
+      {headlightsOn && <pointLight position={[1.3, 0.2, 0]} color="#3B82F6" intensity={4} distance={5} />}
+      <Wheel pos={[0.78, -0.22, 0.54]} idx={0} />
+      <Wheel pos={[0.78, -0.22, -0.54]} idx={1} />
+      <Wheel pos={[-0.78, -0.22, 0.54]} idx={2} />
+      <Wheel pos={[-0.78, -0.22, -0.54]} idx={3} />
+    </group>
+  );
+}
+
+function VehicleScene({ vehicleId, paintColor, doorsOpen, headlightsOn }: { vehicleId: string; paintColor: string; doorsOpen: boolean; headlightsOn: boolean }) {
+  return (
+    <>
+      <ambientLight intensity={0.4} />
+      <directionalLight position={[5, 5, 3]} intensity={2} castShadow />
+      <pointLight position={[-3, 2, -2]} color="#3B82F6" intensity={1} />
+      <Environment preset="city" />
+      {vehicleId === 'sports' && <SportsCar color={paintColor} doorsOpen={doorsOpen} headlightsOn={headlightsOn} />}
+      {vehicleId === 'suv' && <SUV color={paintColor} headlightsOn={headlightsOn} />}
+      {vehicleId === 'sedan' && <Sedan color={paintColor} headlightsOn={headlightsOn} />}
+      {vehicleId === 'motorcycle' && <Motorcycle color={paintColor} headlightsOn={headlightsOn} />}
+      {vehicleId === 'electric' && <ElectricCar color={paintColor} headlightsOn={headlightsOn} />}
+      <OrbitControls enablePan={false} enableZoom={false} maxPolarAngle={Math.PI / 2.1} minPolarAngle={Math.PI / 4} />
+      {/* Floor */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.55, 0]}>
+        <planeGeometry args={[10, 10]} />
+        <meshStandardMaterial color="#0a0a0a" metalness={0.8} roughness={0.3} />
+      </mesh>
+      <gridHelper args={[10, 10, '#3B82F6', '#111827']} position={[0, -0.54, 0]} />
+    </>
+  );
+}
+
+export default function VehicleConfigurator() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const [activeVehicle, setActiveVehicle] = useState(vehicles[0]);
+  const [paintColor, setPaintColor] = useState(paintOptions[0].color);
+  const [doorsOpen, setDoorsOpen] = useState(false);
+  const [headlightsOn, setHeadlightsOn] = useState(true);
+
+  // Auto cycle doors
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDoorsOpen(prev => !prev);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [activeVehicle]);
+
+  return (
+    <section id="configurator" ref={sectionRef} className="relative py-32 overflow-hidden">
+      <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 20% 50%, rgba(0,229,255,0.05) 0%, transparent 60%)' }} />
+
+      <div className="relative max-w-7xl mx-auto px-6 lg:px-8">
+        {/* Header */}
+        <motion.div
+          className="text-center mb-16"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.7 }}
+        >
+          <span className="section-tag mb-4 block">Interactive Garage</span>
+          <div className="neon-line w-24 mx-auto mb-6" />
+          <h2 className="text-4xl md:text-5xl font-black mb-4" style={{ fontFamily: 'Orbitron' }}>
+            <span className="metallic-text">Vehicle</span> <span className="gradient-text">Configurator</span>
+          </h2>
+          <p className="text-gray-400 max-w-xl mx-auto" style={{ fontFamily: 'Rajdhani' }}>
+            Explore our services across different vehicle types. Drag to rotate the model.
+          </p>
+        </motion.div>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Vehicle selector & controls */}
+          <div className="space-y-6">
+            {/* Vehicle types */}
+            <div className="glass-card rounded-2xl p-5 space-y-3">
+              <h3 className="text-xs tracking-[3px] text-gray-500 uppercase mb-4" style={{ fontFamily: 'Rajdhani' }}>Vehicle Type</h3>
+              {vehicles.map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => { setActiveVehicle(v); setPaintColor(v.bodyColor); }}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-300 text-left ${activeVehicle.id === v.id ? 'glass' : ''}`}
+                  style={{
+                    border: activeVehicle.id === v.id ? `1px solid ${v.color}50` : '1px solid transparent',
+                    background: activeVehicle.id === v.id ? `${v.color}10` : 'transparent',
+                  }}
+                >
+                  <span className="text-xl">{v.icon}</span>
+                  <div>
+                    <div className="text-sm font-bold text-white" style={{ fontFamily: 'Rajdhani', letterSpacing: '1px' }}>{v.label}</div>
+                    <div className="text-xs text-gray-500">{v.desc}</div>
+                  </div>
+                  {activeVehicle.id === v.id && (
+                    <div className="ml-auto w-2 h-2 rounded-full pulse-glow" style={{ background: v.color }} />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Paint options */}
+            <div className="glass-card rounded-2xl p-5">
+              <h3 className="text-xs tracking-[3px] text-gray-500 uppercase mb-4" style={{ fontFamily: 'Rajdhani' }}>Paint Color</h3>
+              <div className="grid grid-cols-3 gap-3">
+                {paintOptions.map((p) => (
+                  <button
+                    key={p.name}
+                    onClick={() => setPaintColor(p.color)}
+                    className="flex flex-col items-center gap-1.5 group"
+                  >
+                    <div
+                      className="w-10 h-10 rounded-lg border-2 transition-all duration-200 group-hover:scale-110"
+                      style={{
+                        background: p.color,
+                        borderColor: paintColor === p.color ? '#00E5FF' : 'transparent',
+                        boxShadow: paintColor === p.color ? `0 0 12px ${p.color}80` : 'none',
+                      }}
+                    />
+                    <span className="text-xs text-gray-500" style={{ fontFamily: 'Rajdhani' }}>{p.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Controls */}
+            <div className="glass-card rounded-2xl p-5 space-y-4">
+              <h3 className="text-xs tracking-[3px] text-gray-500 uppercase mb-2" style={{ fontFamily: 'Rajdhani' }}>Controls</h3>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-300" style={{ fontFamily: 'Rajdhani' }}>Headlights</span>
+                <label className="toggle-switch">
+                  <input type="checkbox" checked={headlightsOn} onChange={e => setHeadlightsOn(e.target.checked)} />
+                  <span className="toggle-slider" />
+                </label>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-300" style={{ fontFamily: 'Rajdhani' }}>Doors Open</span>
+                <label className="toggle-switch">
+                  <input type="checkbox" checked={doorsOpen} onChange={e => setDoorsOpen(e.target.checked)} />
+                  <span className="toggle-slider" />
+                </label>
+              </div>
+              <div className="pt-2">
+                <div className="text-xs text-gray-600 text-center" style={{ fontFamily: 'mono' }}>Drag 3D model to rotate</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3D Vehicle view */}
+          <div className="lg:col-span-2">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeVehicle.id}
+                className="relative rounded-2xl overflow-hidden glass-card"
+                style={{ height: '500px', borderColor: `${activeVehicle.color}30` }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.4 }}
+              >
+                <Canvas camera={{ position: [0, 1, 3.5], fov: 55 }} dpr={[1, 1.5]} shadows>
+                  <VehicleScene
+                    vehicleId={activeVehicle.id}
+                    paintColor={paintColor}
+                    doorsOpen={doorsOpen}
+                    headlightsOn={headlightsOn}
+                  />
+                </Canvas>
+
+                {/* HUD overlay */}
+                <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
+                  <div className="glass px-4 py-2 rounded-lg">
+                    <div className="text-xs text-cyan-400 tracking-widest" style={{ fontFamily: 'Orbitron' }}>{activeVehicle.label.toUpperCase()}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{activeVehicle.desc}</div>
+                  </div>
+                  <div className="glass px-3 py-2 rounded-lg text-right">
+                    <div className="text-xs text-gray-500 tracking-widest" style={{ fontFamily: 'Rajdhani' }}>PAINT</div>
+                    <div className="flex items-center gap-1.5 justify-end mt-1">
+                      <div className="w-3 h-3 rounded-sm" style={{ background: paintColor }} />
+                      <span className="text-xs text-gray-300 font-mono">{paintColor.toUpperCase()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status indicators */}
+                <div className="absolute bottom-4 left-4 flex gap-3 pointer-events-none">
+                  <div className={`flex items-center gap-1.5 glass px-3 py-1.5 rounded-lg`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${headlightsOn ? 'bg-cyan-400 pulse-glow' : 'bg-gray-600'}`} />
+                    <span className="text-xs text-gray-400" style={{ fontFamily: 'mono' }}>LIGHTS</span>
+                  </div>
+                  <div className={`flex items-center gap-1.5 glass px-3 py-1.5 rounded-lg`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${doorsOpen ? 'bg-yellow-400' : 'bg-gray-600'}`} />
+                    <span className="text-xs text-gray-400" style={{ fontFamily: 'mono' }}>DOORS</span>
+                  </div>
+                </div>
+
+                {/* Corner brackets */}
+                {['top-2 left-2', 'top-2 right-2', 'bottom-2 left-2', 'bottom-2 right-2'].map((pos, i) => (
+                  <div key={i} className={`absolute ${pos} w-5 h-5 opacity-60`} style={{
+                    borderTop: i < 2 ? `1.5px solid ${activeVehicle.color}` : 'none',
+                    borderBottom: i >= 2 ? `1.5px solid ${activeVehicle.color}` : 'none',
+                    borderLeft: i % 2 === 0 ? `1.5px solid ${activeVehicle.color}` : 'none',
+                    borderRight: i % 2 === 1 ? `1.5px solid ${activeVehicle.color}` : 'none',
+                  }} />
+                ))}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
